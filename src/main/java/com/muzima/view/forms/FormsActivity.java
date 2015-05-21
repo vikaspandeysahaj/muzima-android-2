@@ -10,6 +10,7 @@ package com.muzima.view.forms;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.v4.app.ActionBarDrawerToggle;
 import android.support.v4.view.GravityCompat;
@@ -63,16 +64,6 @@ public class FormsActivity extends FormsActivityBase {
         formController = ((MuzimaApplication) getApplication()).getFormController();
         tagPreferenceService = new TagPreferenceService(this);
         initDrawer();
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
     }
 
     @Override
@@ -138,6 +129,13 @@ public class FormsActivity extends FormsActivityBase {
             hideProgressbar();
             if (syncStatus == SyncStatusConstants.SUCCESS) {
                 ((FormsPagerAdapter) formsPagerAdapter).onFormTemplateDownloadFinish();
+            }
+        } else if(syncType == DataSyncServiceConstants.SYNC_REAL_TIME_UPLOAD_FORMS){
+            SharedPreferences sp = getSharedPreferences("COMPLETED_FORM_AREA_IN_FOREGROUND", MODE_PRIVATE);
+            if(sp.getBoolean("active",false) == true){
+                if (syncStatus == SyncStatusConstants.SUCCESS) {
+                    ((FormsPagerAdapter) formsPagerAdapter).onFormUploadFinish();
+                }
             }
         }
     }

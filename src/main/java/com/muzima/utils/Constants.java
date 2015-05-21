@@ -24,11 +24,12 @@ public class Constants {
     public static final String STATUS_COMPLETE = "complete";
     public static final String STATUS_UPLOADED = "uploaded";
     public static final String SEARCH_STRING_BUNDLE_KEY = "SearchString";
-    public static String LOCAL_PATIENT = "LocalPatient";
+    public static final String LOCAL_PATIENT = "LocalPatient";
 
     public static final String FORM_XML_DISCRIMINATOR_ENCOUNTER = "xml-encounter";
     public static final String FORM_JSON_DISCRIMINATOR_ENCOUNTER = "json-encounter";
-    public static final String FORM_DISCRIMINATOR_REGISTRATION = "registration";
+    public static final String FORM_DISCRIMINATOR_REGISTRATION = "xml-registration";
+    public static final String FORM_HTML_DISCRIMINATOR_REGISTRATION = "html-registration";
     public static final String FORM_JSON_DISCRIMINATOR_CONSULTATION = "json-consultation";
     public static final String FORM_DISCRIMINATOR_CONSULTATION = "consultation";
 
@@ -45,6 +46,7 @@ public class Constants {
         public static final String SYNC_STATUS = "sync_status";
         public static final String DOWNLOAD_COUNT_PRIMARY = "download_count_primary";
         public static final String DOWNLOAD_COUNT_SECONDARY = "download_count_secondary";
+        public static final String DELETED_COUNT_PRIMARY = "deleted_count_primary";
         public static final String FORM_IDS = "formIds";
         public static final String COHORT_IDS = "cohortIds";
         public static final String PATIENT_UUID_FOR_DOWNLOAD = "patientUUIDForDownload";
@@ -60,6 +62,7 @@ public class Constants {
         public static final int SYNC_UPLOAD_FORMS = 8;
         public static final int DOWNLOAD_PATIENT_ONLY = 9;
         public static final int SYNC_NOTIFICATIONS = 10;
+        public static final int SYNC_REAL_TIME_UPLOAD_FORMS =11;
 
         public static class SyncStatusConstants {
             public static final int DOWNLOAD_ERROR = 0;

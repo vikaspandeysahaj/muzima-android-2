@@ -46,6 +46,7 @@
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">match_parent</item>
         <item name="android:orientation">vertical</item>
+	<item name="android:background">@color/primary_black</item>
     </style>
 
     <style name="WizardContainer">
@@ -266,6 +267,16 @@
         <item name="android:paddingLeft">8dp</item>
         <item name="android:singleLine">true</item>
         <item name="android:textSize">16sp</item>
+    </style>
+
+    <style name="FormSaveDateTime">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:gravity">right</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:paddingLeft">8dp</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textSize">14sp</item>
     </style>
 
     <style name="ObservationGroupByConceptHeader">
@@ -568,6 +579,17 @@
         <item name="android:background">@drawable/list_multi_selector_blue</item>
         <item name="android:textColor">@android:color/white</item>
         <item name="android:textAppearance">?android:attr/textAppearanceMedium</item>
+    </style>
+
+    <style name="ListViewSelectableDescription">
+        <item name="android:layout_width">fill_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:paddingTop">5dp</item>
+        <item name="android:paddingLeft">15dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:background">@drawable/list_multi_selector_blue</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textAppearance">?android:attr/textAppearanceSmall</item>
     </style>
 
     <style name="ListViewText">

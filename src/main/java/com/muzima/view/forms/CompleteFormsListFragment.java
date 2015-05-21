@@ -8,6 +8,7 @@
 
 package com.muzima.view.forms;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,7 +18,6 @@ import com.muzima.R;
 import com.muzima.adapters.forms.CompleteFormsAdapter;
 import com.muzima.adapters.forms.FormsAdapter;
 import com.muzima.controller.FormController;
-import com.muzima.model.CompleteForm;
 import com.muzima.model.CompleteFormWithPatientData;
 
 public class CompleteFormsListFragment extends FormsFragmentWithSectionedListAdapter implements FormsAdapter.MuzimaClickListener{
@@ -26,6 +26,25 @@ public class CompleteFormsListFragment extends FormsFragmentWithSectionedListAda
         CompleteFormsListFragment f = new CompleteFormsListFragment();
         f.formController = formController;
         return f;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Store our shared preference
+        SharedPreferences sp = getActivity().getSharedPreferences("COMPLETED_FORM_AREA_IN_FOREGROUND", getActivity().getApplicationContext().MODE_PRIVATE);
+        SharedPreferences.Editor ed = sp.edit();
+        ed.putBoolean("active", true);
+        ed.commit();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        SharedPreferences sp = getActivity().getSharedPreferences("COMPLETED_FORM_AREA_IN_FOREGROUND", getActivity().getApplicationContext().MODE_PRIVATE);
+        SharedPreferences.Editor ed = sp.edit();
+        ed.putBoolean("active", false);
+        ed.commit();
     }
 
     @Override

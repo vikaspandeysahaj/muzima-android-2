@@ -26,7 +26,6 @@ package com.muzima.adapters.forms;
 
 import android.content.Context;
 import android.support.v4.app.FragmentManager;
-
 import com.muzima.MuzimaApplication;
 import com.muzima.adapters.MuzimaPagerAdapter;
 import com.muzima.controller.FormController;
@@ -83,10 +82,10 @@ public class FormsPagerAdapter extends MuzimaPagerAdapter implements TagsListAda
         allAvailableFormsListFragment.setTemplateDownloadCompleteListener(downloadedFormsListFragment);
         downloadedFormsListFragment.setAllAvailableFormsCompleteListener(allAvailableFormsListFragment);
 
-        pagers[TAB_All] = new PagerView("All", allAvailableFormsListFragment);
-        pagers[TAB_DOWNLOADED] = new PagerView("Downloaded", downloadedFormsListFragment);
-        pagers[TAB_COMPLETE] = new PagerView("Complete", completeFormsListFragment);
-        pagers[TAB_INCOMPLETE] = new PagerView("Incomplete", incompleteFormsListFragment);
+        pagers[TAB_All] = new PagerView("All Form Templates", allAvailableFormsListFragment);
+        pagers[TAB_DOWNLOADED] = new PagerView("Downloaded Form Templates", downloadedFormsListFragment);
+        pagers[TAB_COMPLETE] = new PagerView("Complete Form Data", completeFormsListFragment);
+        pagers[TAB_INCOMPLETE] = new PagerView("Incomplete Form Data", incompleteFormsListFragment);
     }
 
     public void endActionMode() {

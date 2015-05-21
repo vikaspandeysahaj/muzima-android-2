@@ -33,6 +33,7 @@ import com.muzima.api.model.Form;
 import com.muzima.api.model.FormData;
 import com.muzima.api.model.FormTemplate;
 import com.muzima.api.model.Patient;
+import com.muzima.api.model.User;
 import com.muzima.controller.FormController;
 import com.muzima.model.BaseForm;
 import com.muzima.model.FormWithData;
@@ -45,10 +46,13 @@ import com.muzima.utils.video.VideoResult;
 import com.muzima.view.BroadcastListenerActivity;
 import com.muzima.view.patients.PatientSummaryActivity;
 import org.apache.commons.lang.time.DateUtils;
+import org.apache.lucene.queryParser.ParseException;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -68,10 +72,13 @@ public class HTMLFormWebViewActivity extends BroadcastListenerActivity {
     public static final String IMAGE = "imagingComponent";
     public static final String AUDIO = "audioComponent";
     public static final String VIDEO = "videoComponent";
-    public static final String ZIGGY_FILE_LOADER = "ziggyFileLoader";
     public static final String FORM = "form";
     public static final String DISCRIMINATOR = "discriminator";
     public static final String DEFAULT_AUTO_SAVE_INTERVAL_VALUE_IN_MINS =  "2";
+    public static final boolean IS_LOGGED_IN_USER_DEFAULT_PROVIDER =  false;
+    public static final boolean IS_ALLOWED_FORM_DATA_DUPLICATION =  true;
+    public static final String SAVE_AS_INCOMPLETE = "saveDraft";
+    public static final String SAVE_AS_COMPLETED = "submit";
 
 
     private WebView webView;
@@ -91,7 +98,10 @@ public class HTMLFormWebViewActivity extends BroadcastListenerActivity {
     private String sectionName;
     private FormController formController;
     private String autoSaveIntervalPreference;
+    private boolean encounterProviderPreference;
+    private boolean duplicateFormDataPreference;
     final Handler handler = new Handler();
+    public String jsonPayload;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -109,10 +119,12 @@ public class HTMLFormWebViewActivity extends BroadcastListenerActivity {
         progressDialog = new MuzimaProgressDialog(this);
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this.getApplicationContext());
         autoSaveIntervalPreference = preferences.getString("autoSaveIntervalPreference", DEFAULT_AUTO_SAVE_INTERVAL_VALUE_IN_MINS);
+        encounterProviderPreference = preferences.getBoolean("encounterProviderPreference", IS_LOGGED_IN_USER_DEFAULT_PROVIDER);
+        duplicateFormDataPreference = preferences.getBoolean("duplicateFormDataPreference", IS_ALLOWED_FORM_DATA_DUPLICATION );
+
         showProgressBar("Loading...");
         try {
-            patient = (Patient) getIntent().getSerializableExtra(PATIENT);
-            setupFormData(patient);
+            setupFormData();
             startAutoSaveProcess();
             setupWebView();
         } catch (FormFetchException e) {
@@ -124,6 +136,10 @@ public class HTMLFormWebViewActivity extends BroadcastListenerActivity {
         } catch (FormController.FormDataSaveException e) {
             Log.e(TAG, e.getMessage(), e);
             finish();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -145,12 +161,16 @@ public class HTMLFormWebViewActivity extends BroadcastListenerActivity {
         handler.postDelayed(runnable, Integer.parseInt(autoSaveIntervalPreference) * DateUtils.MILLIS_PER_MINUTE);
     }
 
+    public void stopAutoSaveProcess() {
+        handler.removeCallbacksAndMessages(null);
+    }
+
     @Override
     protected void onDestroy() {
         if (progressDialog != null) {
             progressDialog.dismiss();
         }
-        handler.removeCallbacksAndMessages(null);
+        stopAutoSaveProcess();
         super.onDestroy();
     }
 
@@ -199,10 +219,26 @@ public class HTMLFormWebViewActivity extends BroadcastListenerActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.form_save_as_draft:
-                saveDraft();
+                try {
+                    saveDraft();
+                } catch (IOException e) {
+                    Log.e(TAG, "Error while saving the form data", e);
+                } catch (JSONException e) {
+                    Log.e(TAG, "Error while saving the form data", e);
+                } catch (InterruptedException e) {
+                    Log.e(TAG, "Error while saving the form data", e);
+                }
                 return true;
             case R.id.form_submit:
-                webView.loadUrl("javascript:document.submit()");
+                try {
+                    saveCompleted();
+                } catch (IOException e) {
+                    Log.e(TAG, "Error while saving the form data", e);
+                } catch (JSONException e) {
+                    Log.e(TAG, "Error while saving the form data", e);
+                } catch (InterruptedException e) {
+                    Log.e(TAG, "Error while saving the form data", e);
+                }
                 return true;
             case R.id.form_close:
                 processBackButtonPressed();
@@ -235,11 +271,79 @@ public class HTMLFormWebViewActivity extends BroadcastListenerActivity {
                 .create()
                 .show();
     }
+    public void showWarningDialog(String saveType) {
+        new AlertDialog.Builder(HTMLFormWebViewActivity.this)
+                .setCancelable(true)
+                .setIcon(getResources().getDrawable(R.drawable.ic_warning))
+                .setTitle(getResources().getString(R.string.already_exists_form_title))
+                .setMessage(getResources().getString(R.string.already_exists_form_message))
+                .setPositiveButton(getString(R.string.duplicate_form_button_label), duplicateFormDataClickListener(saveType))
+                .setNegativeButton(getString(R.string.cancel), null)
+                .create()
+                .show();
+    }
+    public void showWarningDialog() {
+        new AlertDialog.Builder(HTMLFormWebViewActivity.this)
+                .setCancelable(true)
+                .setIcon(getResources().getDrawable(R.drawable.ic_warning))
+                .setTitle(getResources().getString(R.string.already_exists_form_title))
+                .setMessage(getResources().getString(R.string.already_exists_form_message))
+                .setNegativeButton(getString(R.string.alert_Ok), null)
+                .create()
+                .show();
+    }
+    private boolean isFormAlreadyExist() throws IOException, JSONException {
+        return formController.isFormAlreadyExist(this.jsonPayload);
+    }
+    private Dialog.OnClickListener duplicateFormDataClickListener(final String saveType){
 
-    public void saveDraft() {
+        return new Dialog.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                if(saveType.equals(SAVE_AS_INCOMPLETE)){
+                    webView.loadUrl("javascript:document.saveDraft()");
+                }else if(saveType.equals(SAVE_AS_COMPLETED)){
+                    webView.loadUrl("javascript:document.submit()");
+                }
+            }
+        };
+    }
+
+    public void saveDraft() throws IOException, JSONException, InterruptedException {
+        loadJson();
+        Thread.sleep(500);
         if (!isFormComplete()) {
-            webView.loadUrl("javascript:document.saveDraft()");
+            if(isFormAlreadyExist()) {
+                if(duplicateFormDataPreference) {
+                    showWarningDialog(SAVE_AS_INCOMPLETE);
+                }
+                else {
+                    showWarningDialog();
+                }
+            }
+            else {
+                webView.loadUrl("javascript:document.saveDraft()");
+            }
         }
+    }
+
+    public void saveCompleted() throws IOException, JSONException, InterruptedException {
+        loadJson();
+        Thread.sleep(500);
+        if(isFormAlreadyExist()) {
+            if(duplicateFormDataPreference) {
+                showWarningDialog(SAVE_AS_COMPLETED);
+            }else {
+                showWarningDialog();
+            }
+        }
+        else {
+            webView.loadUrl("javascript:document.submit()");
+        }
+    }
+
+    private void loadJson(){
+        webView.loadUrl("javascript:document.loadJson()");
     }
 
     @Override
@@ -294,31 +398,34 @@ public class HTMLFormWebViewActivity extends BroadcastListenerActivity {
         return formData.getStatus().equalsIgnoreCase(STATUS_COMPLETE);
     }
 
-    private void setupFormData(Patient patient) throws FormFetchException, FormController.FormDataFetchException, FormController.FormDataSaveException {
-        BaseForm formObject = (BaseForm) getIntent().getSerializableExtra(FORM);
-
+    private void setupFormData()
+            throws FormFetchException, FormController.FormDataFetchException, FormController.FormDataSaveException, IOException, ParseException {
         FormController formController = ((MuzimaApplication) getApplication()).getFormController();
-        String formId = formObject.getFormUuid();
-        form = formController.getFormByUuid(formId);
-        formTemplate = formController.getFormTemplateByUuid(formId);
 
-        if (formObject.hasData()) {
-            formData = formController.getFormDataByUuid(((FormWithData) formObject).getFormDataUuid());
+        BaseForm baseForm = (BaseForm) getIntent().getSerializableExtra(FORM);
+        form = formController.getFormByUuid(baseForm.getFormUuid());
+        patient = (Patient) getIntent().getSerializableExtra(PATIENT);
+        formTemplate = formController.getFormTemplateByUuid(baseForm.getFormUuid());
+
+        if (baseForm.hasData()) {
+            formData = formController.getFormDataByUuid(((FormWithData) baseForm).getFormDataUuid());
         } else {
-            formData = createNewFormData(patient.getUuid(), formId, patient, formTemplate);
+            formData = createNewFormData();
         }
     }
 
-    private FormData createNewFormData(final String patientUuid, final String formUuid, Patient patient, FormTemplate formTemplate) throws FormController.FormDataSaveException {
+    private FormData createNewFormData() throws FormController.FormDataSaveException, IOException, ParseException {
         FormData formData = new FormData() {{
             setUuid(UUID.randomUUID().toString());
-            setPatientUuid(patientUuid);
+            setPatientUuid(patient.getUuid());
             setUserUuid("userUuid");
             setStatus(STATUS_INCOMPLETE);
-            setTemplateUuid(formUuid);
-            setDiscriminator(getIntent().getStringExtra(DISCRIMINATOR));
+            setTemplateUuid(form.getUuid());
+            setDiscriminator(form.getDiscriminator());
         }};
-        formData.setJsonPayload(new HTMLPatientJSONMapper().map(patient, formData));
+        User user = ((MuzimaApplication) getApplicationContext()).getAuthenticatedUser();
+
+        formData.setJsonPayload(new HTMLPatientJSONMapper().map(patient, formData, user,encounterProviderPreference));
         return formData;
     }
 
@@ -426,8 +533,12 @@ public class HTMLFormWebViewActivity extends BroadcastListenerActivity {
     }
 
     private boolean isEncounterForm() {
-        return getIntent().getStringExtra(DISCRIMINATOR).equals(Constants.FORM_JSON_DISCRIMINATOR_ENCOUNTER)
-                || getIntent().getStringExtra(DISCRIMINATOR).equals(Constants.FORM_JSON_DISCRIMINATOR_CONSULTATION);
+        return formData.getDiscriminator().equalsIgnoreCase(Constants.FORM_JSON_DISCRIMINATOR_ENCOUNTER)
+                || formData.getDiscriminator().equalsIgnoreCase(Constants.FORM_JSON_DISCRIMINATOR_CONSULTATION);
+    }
+
+    public Handler getHandler() {
+        return handler;
     }
 }
 

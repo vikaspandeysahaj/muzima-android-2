@@ -36,6 +36,7 @@ import java.util.Iterator;
 import java.util.List;
 
 public class ConceptController {
+    public static List<Concept> newConcepts = new ArrayList<Concept>();
     private ConceptService conceptService;
     private ObservationService observationService;
 
@@ -57,6 +58,18 @@ public class ConceptController {
             conceptService.deleteConcept(concept);
             List<Observation> observations = observationService.getObservations(concept);
             observationService.deleteObservations(observations);
+        } catch (IOException e) {
+            throw new ConceptDeleteException(e);
+        }
+    }
+
+    public void deleteConcepts(List<Concept> concepts) throws ConceptDeleteException {
+        try {
+            conceptService.deleteConcepts(concepts);
+            for(Concept concept : concepts){
+                List<Observation> observations = observationService.getObservations(concept);
+                observationService.deleteObservations(observations);
+            }
         } catch (IOException e) {
             throw new ConceptDeleteException(e);
         }

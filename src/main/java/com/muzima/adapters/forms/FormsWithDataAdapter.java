@@ -28,11 +28,13 @@ import android.content.Context;
 import android.os.Build;
 import android.view.View;
 import android.view.ViewGroup;
-
 import com.muzima.controller.FormController;
 import com.muzima.model.FormWithData;
+import com.muzima.utils.Fonts;
+import com.muzima.utils.StringUtils;
 import com.muzima.view.CheckedRelativeLayout;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,6 +58,34 @@ public abstract class FormsWithDataAdapter<T extends FormWithData> extends Forms
     public View getView(int position, View convertView, ViewGroup parent) {
         convertView = super.getView(position, convertView, parent);
         setClickListenersOnView(position, convertView);
+        FormWithData form = getItem(position);
+
+        String formSaveTime = null;
+        if(form.getLastModifiedDate() != null){
+            SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
+            formSaveTime = dateFormat.format(form.getLastModifiedDate());
+        }
+
+        String encounterDate = null;
+        if(form.getEncounterDate() != null){
+            SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy");
+            encounterDate = dateFormat.format(form.getEncounterDate());
+        }
+
+        ViewHolder holder = (ViewHolder) convertView.getTag();
+
+        if (!StringUtils.isEmpty(formSaveTime)) {
+            holder.savedTime.setText(formSaveTime);
+        }
+        if(!StringUtils.isEmpty(encounterDate)){
+            holder.encounterDate.setText(encounterDate);
+        }
+        holder.savedTime.setTypeface(Fonts.roboto_italic(getContext()));
+        holder.savedTime.setVisibility(View.VISIBLE);
+
+        holder.encounterDate.setTypeface(Fonts.roboto_italic(getContext()));
+        holder.savedTime.setVisibility(View.VISIBLE);
+
         return convertView;
     }
 

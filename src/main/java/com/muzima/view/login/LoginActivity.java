@@ -61,7 +61,6 @@ public class LoginActivity extends Activity {
         super.onCreate(savedInstanceState);
         ((MuzimaApplication)getApplication()).cancelTimer();
         setContentView(R.layout.activity_login);
-
         showSessionTimeOutPopUpIfNeeded();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
             honeycombOrGreater = true;
@@ -139,11 +138,6 @@ public class LoginActivity extends Activity {
             loginButton.setVisibility(View.VISIBLE);
             authenticatingText.setVisibility(View.GONE);
         }
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
     }
 
     @Override

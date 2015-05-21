@@ -42,6 +42,7 @@ import com.muzima.utils.CustomColor;
 import com.muzima.utils.EnDeCrypt;
 import com.muzima.utils.MediaUtils;
 import com.muzima.utils.StringUtils;
+import com.muzima.view.forms.HTMLPatientJSONMapper;
 import com.muzima.view.forms.PatientJSONMapper;
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
@@ -111,6 +112,14 @@ public class FormController {
 
     public AvailableForms getAvailableFormByTags(List<String> tagsUuid) throws FormFetchException {
         return getAvailableFormByTags(tagsUuid, false);
+    }
+
+    public List<Form> getAllAvailableForms() throws FormFetchException {
+        try {
+            return formService.getAllForms();
+        } catch (IOException e) {
+            throw new FormFetchException(e);
+        }
     }
 
     public AvailableForms getAvailableFormByTags(List<String> tagsUuid, boolean alwaysIncludeRegistrationForms) throws FormFetchException {
@@ -276,6 +285,15 @@ public class FormController {
         }
     }
 
+    public void saveFormTemplates(List<FormTemplate> formTemplates) throws FormSaveException {
+
+        try {
+            formService.saveFormTemplates(formTemplates);
+        } catch (IOException e) {
+            throw new FormSaveException(e);
+        }
+    }
+
     public boolean isFormDownloaded(Form form) throws FormFetchException {
         boolean downloaded;
         try {
@@ -325,6 +343,8 @@ public class FormController {
                         .withForm(formService.getFormByUuid(formData.getTemplateUuid()))
                         .withFormDataUuid(formData.getUuid())
                         .withPatient(patient)
+                        .withLastModifiedDate(formData.getSaveTime())
+                        .withEncounterDate(formData.getEncounterDate())
                         .build();
             }
 
@@ -336,6 +356,7 @@ public class FormController {
 
     public void saveFormData(FormData formData) throws FormDataSaveException {
         try {
+            formData.setSaveTime(new Date());
             formService.saveFormData(formData);
         } catch (IOException e) {
             throw new FormDataSaveException(e);
@@ -373,6 +394,8 @@ public class FormController {
                         .withForm(formService.getFormByUuid(formData.getTemplateUuid()))
                         .withFormDataUuid(formData.getUuid())
                         .withPatient(patient)
+                        .withLastModifiedDate(formData.getSaveTime())
+                        .withEncounterDate(formData.getEncounterDate())
                         .build());
             }
         } catch (IOException e) {
@@ -392,6 +415,8 @@ public class FormController {
                         .withForm(formService.getFormByUuid(formData.getTemplateUuid()))
                         .withFormDataUuid(formData.getUuid())
                         .withPatient(patient)
+                        .withLastModifiedDate(formData.getSaveTime())
+                        .withEncounterDate(formData.getEncounterDate())
                         .build();
                 completeForms.add(completeForm);
             }
@@ -408,6 +433,8 @@ public class FormController {
             for (FormData formData : allFormData) {
                 incompleteForms.add(new IncompleteFormBuilder().withForm(formService.getFormByUuid(formData.getTemplateUuid()))
                         .withFormDataUuid(formData.getUuid())
+                        .withLastModifiedDate(formData.getSaveTime())
+                        .withEncounterDate(formData.getEncounterDate())
                         .build());
             }
         } catch (IOException e) {
@@ -425,6 +452,8 @@ public class FormController {
                 completePatientForms.add(new CompleteFormBuilder()
                         .withForm(form)
                         .withFormDataUuid(formData.getUuid())
+                        .withLastModifiedDate(formData.getSaveTime())
+                        .withEncounterDate(formData.getEncounterDate())
                         .build());
             }
         } catch (IOException e) {
@@ -465,9 +494,18 @@ public class FormController {
             Patient patient = new PatientJSONMapper(data).getPatient();
             patientService.savePatient(patient);
             return patient;
-        } catch (JSONException e) {
+        } catch (Exception e) {
             Log.e(TAG, e.getMessage(), e);
-        } catch (IOException e) {
+        }
+        return null;
+    }
+
+    public Patient createNewHTMLPatient(String data) {
+        try {
+            Patient patient = new HTMLPatientJSONMapper().getPatient(data);
+            patientService.savePatient(patient);
+            return patient;
+        } catch (Exception e) {
             Log.e(TAG, e.getMessage(), e);
         }
         return null;
@@ -479,6 +517,7 @@ public class FormController {
             List<FormData> allFormData = formService.getAllFormData(Constants.STATUS_COMPLETE);
 
             result = uploadFormDataToServer(getFormsWithDiscriminator(allFormData, Constants.FORM_DISCRIMINATOR_REGISTRATION), result);
+            result = uploadFormDataToServer(getFormsWithDiscriminator(allFormData, Constants.FORM_HTML_DISCRIMINATOR_REGISTRATION), result);
             result = uploadFormDataToServer(getFormsWithDiscriminator(allFormData, Constants.FORM_JSON_DISCRIMINATOR_CONSULTATION), result);
             result = uploadFormDataToServer(getFormsWithDiscriminator(allFormData, Constants.FORM_XML_DISCRIMINATOR_ENCOUNTER), result);
             return uploadFormDataToServer(getFormsWithDiscriminator(allFormData, Constants.FORM_JSON_DISCRIMINATOR_ENCOUNTER), result);
@@ -690,5 +729,32 @@ public class FormController {
             }
         }
         return mediaString != null? mediaString : mediaUri;
+    }
+    public boolean isFormAlreadyExist(String jsonPayload) throws IOException, JSONException {
+        org.json.JSONObject temp = new org.json.JSONObject(jsonPayload);
+        String checkEncounterDate = ((org.json.JSONObject)temp.get("encounter")).get("encounter.encounter_datetime").toString();
+        String checkPatientUuid = ((org.json.JSONObject)temp.get("patient")).get("patient.uuid").toString();
+        String checkFormUuid = ((org.json.JSONObject)temp.get("encounter")).get("encounter.form_uuid").toString();
+
+        List<FormData> allFormData = formService.getAllFormData(Constants.STATUS_INCOMPLETE);
+        allFormData.addAll(formService.getAllFormData(Constants.STATUS_COMPLETE));
+        for (FormData formData1 : allFormData){
+            if(!isRegistrationFormData(formData1)) {
+                org.json.JSONObject object = new org.json.JSONObject(formData1.getJsonPayload());
+                String encounterDate = ((org.json.JSONObject) object.get("encounter")).get("encounter.encounter_datetime").toString();
+                String patientUuid = ((org.json.JSONObject) object.get("patient")).get("patient.uuid").toString();
+                String formUuid = ((org.json.JSONObject) object.get("encounter")).get("encounter.form_uuid").toString();
+                if (encounterDate.equals(checkEncounterDate)
+                        && patientUuid.equals(checkPatientUuid)
+                        && formUuid.equals(checkFormUuid)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isRegistrationFormData(FormData formData){
+        return formData.getDiscriminator().equals(Constants.FORM_DISCRIMINATOR_REGISTRATION) || formData.getDiscriminator().equals(Constants.FORM_HTML_DISCRIMINATOR_REGISTRATION);
     }
 }

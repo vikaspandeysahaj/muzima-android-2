@@ -9,7 +9,6 @@
 package com.muzima.adapters;
 
 import android.content.Context;
-import android.os.Build;
 import android.widget.ArrayAdapter;
 
 import java.util.Collection;
@@ -34,4 +33,6 @@ public abstract class ListAdapter<T> extends ArrayAdapter<T>{
             add(t);
         }
     }
+
+
 }

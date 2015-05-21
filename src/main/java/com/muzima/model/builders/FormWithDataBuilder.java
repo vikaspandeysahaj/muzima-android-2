@@ -12,6 +12,8 @@ import com.muzima.api.model.Form;
 import com.muzima.api.model.Patient;
 import com.muzima.model.FormWithData;
 
+import java.util.Date;
+
 public abstract class FormWithDataBuilder<B extends FormWithDataBuilder, F extends FormWithData> {
     protected F formWithData;
 
@@ -27,13 +29,18 @@ public abstract class FormWithDataBuilder<B extends FormWithDataBuilder, F exten
         return (B) this;
     }
 
-    public B withLastModifiedData(String date) {
+    public B withLastModifiedDate(Date date) {
         formWithData.setLastModifiedDate(date);
         return (B) this;
     }
 
     public B withPatient(Patient patient) {
         formWithData.setPatient(patient);
+        return (B) this;
+    }
+
+    public B withEncounterDate(Date encounterDate){
+        formWithData.setEncounterDate(encounterDate);
         return (B) this;
     }
 

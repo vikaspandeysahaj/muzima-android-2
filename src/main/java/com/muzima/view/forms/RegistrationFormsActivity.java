@@ -21,9 +21,8 @@ import com.muzima.controller.FormController;
 import com.muzima.model.AvailableForm;
 import com.muzima.model.collections.AvailableForms;
 import com.muzima.view.BaseActivity;
-import java.util.UUID;
 
-import static com.muzima.utils.Constants.FORM_DISCRIMINATOR_REGISTRATION;
+import java.util.UUID;
 
 public class RegistrationFormsActivity extends BaseActivity {
     private ListView list;
@@ -71,7 +70,7 @@ public class RegistrationFormsActivity extends BaseActivity {
         Patient patient = new Patient();
         String uuid = String.valueOf(UUID.randomUUID());
         patient.setUuid(uuid);
-        startActivity(new FormViewIntent(this, form, patient, FORM_DISCRIMINATOR_REGISTRATION));
+        startActivity(new FormViewIntent(this, form, patient));
     }
 
     private AvailableForms getRegistrationForms(FormController formController) {

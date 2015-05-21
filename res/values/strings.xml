@@ -21,6 +21,7 @@
     <string name="clients">Clients</string>
     <string name="forms">Forms</string>
     <string name="notices">Notices</string>
+    <string name="encounters">Encounters</string>
 
     <string name="no_new_form_msg">No Forms Available</string>
     <string name="no_new_form_tip">Please press load to fetch data from server</string>
@@ -62,6 +63,7 @@
     <string name="no_clients_matched_tip_remotely">Your search includes client id, given name, middle name and family
         name and searched only in the device
     </string>
+    <string name="no_encounters_available">No Encounters Available</string>
 
     <string name="action_settings">Settings</string>
     <string name="hello_world">Hello world!</string>
@@ -83,6 +85,8 @@
     <string name="title_activity_notice_list">Notice List</string>
     <string name="title_activity_client_summary">Client Summary</string>
     <string name="title_activity_client_observations">Client Observations</string>
+    <string name="title_activity_client_encounters">Client Encounters</string>
+    <string name="title_activity_encounter_summary">Observations</string>
     <string name="title_login">Please Log In</string>
     <string name="title_activity_cohort_pref">Cohort Prefixes</string>
 
@@ -134,10 +138,13 @@
     <string name="preference_category_cohorts">Cohort Settings</string>
     <string name="preference_cohorts_prefix_desc">Enter cohort prefixes</string>
     <string name="preference_cohort_prefix">cohortPrefixesPreference</string>
+    <string name="preference_real_time_sync_summary">Enables real time synchronization of completed forms.</string>
+    <string name="preference_real_time_sync_title">Real time sync</string>
+    <string name="preference_real_time_sync">realTimeSyncPreference</string>
 
     <string name="add_cohort_prefixes">Step 1: Add Cohort Prefix</string>
     <string name="download_cohort">Step 1: Download Cohort(s)</string>
-    <string name="download_form">Step 2: Download Form(s)</string>
+    <string name="download_form">Step 2: Download Form Template(s)</string>
     <string name="add_concept_prefixes">Step 3: Add Concept</string>
     <string name="check_barcode_scanner_header">Step 4: Check for BarCode Scanner</string>
 
@@ -147,6 +154,7 @@
     <string name="cohort_prefix_label">Prefix:</string>
     <string name="cohort_add_prefix_hint">Add Prefix</string>
 
+    <string name="observations_still_loading">Observations are still loading</string>
     <string name="no_observations_available">No Observations Available</string>
 
     <string name="preference_form_title">Add form tags</string>
@@ -193,7 +201,7 @@
     <string name="download_cohort_desc">Select one or more of the cohorts from the list and click on \'Next\' to
         download data relevant to these cohorts.
     </string>
-    <string name="download_form_desc">Select one or more forms from the list and click on \'Next\' to download</string>
+    <string name="download_form_desc">Select one or more form templates from the list and click on \'Next\' to download</string>
     <string name="downloaded_image">Downloaded Image</string>
     <string name="add_concept_pref_desc">Add concepts for which you would want observations to be downloaded.</string>
     <string name="install_barcode_scanner_description">You need a barcode scanner application to register clients from
@@ -209,6 +217,7 @@
     </string>
     <string name="exit_form_message">Closing Form: This will discard all your changes.  Are you sure you would like to do this?
     </string>
+    <string name="exit_app_message">Are you sure to log out and exit mUzima app?</string>
     <string name="filter_cohort_hint">Start typing to filter the cohorts...</string>
 
     <string name="notifications">Notifications</string>
@@ -292,4 +301,23 @@
         </p>
         ]]>
     </string>
+    <string name="preference_encounter_provider_desc">Logged-in user as default encounter form provider</string>
+    <string name="preference_encounter_provider_title">Default encounter provider</string>
+    <string name="preference_encounter_provider">encounterProviderPreference</string>
+    <string name="crash_dialog_text">An unexpected error occurred forcing mUzima to stop. Please help us fix
+        this by sending us error data, all you have to do is click OK.
+    </string>
+    <string name="crash_dialog_title">mUzima has crashed...</string>
+    <string name="crash_dialog_comment_prompt">Please add your comments about the problem below.</string>
+    <string name="crash_dialog_ok_toast">Thank you!</string>
+
+    <string name="already_exists_form_message">This Form Data already exists for this client with same encounter date.</string>
+    <string name="already_exists_form_title">Duplicate Form Data</string>
+    <string name="duplicate_form_button_label">Save Duplicate Form Data</string>
+    <string name="alert_Ok">Ok</string>
+
+    <string name="preference_duplicate_form_data_desc">Allow Duplicate Form Data for same client with same encounter date</string>
+    <string name="preference_duplicate_form_data_title">Allow Duplication </string>
+    <string name="preference_duplicate_form_data">duplicateFormDataPreference</string>
+
 </resources>

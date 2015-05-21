@@ -9,6 +9,7 @@
 package com.muzima;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.Application;
 import android.content.SharedPreferences;
 import android.os.Build;
@@ -35,6 +36,7 @@ import com.muzima.service.SntpService;
 import com.muzima.util.Constants;
 import com.muzima.utils.StringUtils;
 import com.muzima.view.forms.FormWebViewActivity;
+import com.muzima.view.forms.HTMLFormWebViewActivity;
 import com.muzima.view.preferences.MuzimaTimer;
 import org.acra.ACRA;
 import org.acra.ReportingInteractionMode;
@@ -47,17 +49,27 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.Security;
+import java.util.List;
 
 import static com.muzima.view.preferences.MuzimaTimer.getTimer;
 
 @ReportsCrashes(
+
         formKey = "",
-        formUri = "http://prasann.cloudant.com/acra-muzima/_design/acra-storage/_update/report",
         reportType = HttpSender.Type.JSON,
-        httpMethod = HttpSender.Method.PUT,
-        formUriBasicAuthLogin = "utionermsedeastagesinibl",
-        formUriBasicAuthPassword = "QJi5kBCe36wGC6jeMeWfSB4q",
-        mode = ReportingInteractionMode.TOAST)
+        httpMethod = HttpSender.Method.POST,
+        formUri = "http://173.255.205.23:5984/acra-muzima/_design/acra-storage/_update/report",
+        formUriBasicAuthLogin = "muzima-reporter",
+        formUriBasicAuthPassword = "OMHKOHV8LVfv3c553n6Oqkof",
+        mode = ReportingInteractionMode.DIALOG,
+        resDialogText = R.string.crash_dialog_text,
+        resDialogIcon = android.R.drawable.ic_dialog_info,
+        resDialogTitle = R.string.crash_dialog_title,
+        resDialogCommentPrompt = R.string.crash_dialog_comment_prompt,
+        resDialogOkToast = R.string.crash_dialog_ok_toast
+)
+
+
 public class MuzimaApplication extends Application {
     private Context muzimaContext;
     private Activity currentActivity;
@@ -91,18 +103,21 @@ public class MuzimaApplication extends Application {
     }
 
     private static boolean deleteDir(File dir) {
-        if (dir != null && dir.isDirectory()) {
-            String[] children = dir.list();
-            for (String child : children) {
-                boolean success = deleteDir(new File(dir, child));
-                if (!success) {
-                    return false;
+        if (dir != null) {
+            if (dir.isDirectory()) {
+                String[] children = dir.list();
+                for (String child : children) {
+                    boolean success = deleteDir(new File(dir, child));
+                    if (!success) {
+                        return false;
+                    }
                 }
             }
+            return dir.delete();
+        } else {
+            return false;
         }
-        return dir.delete();
     }
-
 
     @Override
     public void onCreate() {
@@ -110,10 +125,12 @@ public class MuzimaApplication extends Application {
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.FROYO) {
             System.setProperty("http.keepAlive", "false");
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2
+                && Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
             Security.removeProvider("AndroidOpenSSL");
         }
         muzimaTimer = getTimer(this);
+
         super.onCreate();
         try {
             ContextFactory.setProperty(Constants.LUCENE_DIRECTORY_PATH, APP_DIR);
@@ -131,23 +148,21 @@ public class MuzimaApplication extends Application {
     }
 
     public User getAuthenticatedUser() {
-        User authenticatedUser = null;
+        User authenticatedUser;
         muzimaContext.openSession();
         try {
             if (muzimaContext.isAuthenticated())
                 authenticatedUser = muzimaContext.getAuthenticatedUser();
-            else    {
-                Credentials cred   = new Credentials(getApplicationContext()) ;
-                if (cred != null) {
-                    String[] credentials = cred.getCredentialsArray();
-                    String username = credentials[0];
-                    String password = credentials[1];
-                    String server = credentials[2];
-                    if (!StringUtils.isEmpty(username) && !StringUtils.isEmpty(password) && !StringUtils.isEmpty(server))
-                        muzimaContext.authenticate(username, password, server);
+            else {
+                Credentials cred = new Credentials(getApplicationContext());
+                String[] credentials = cred.getCredentialsArray();
+                String username = credentials[0];
+                String password = credentials[1];
+                String server = credentials[2];
+                if (!StringUtils.isEmpty(username) && !StringUtils.isEmpty(password) && !StringUtils.isEmpty(server))
+                    muzimaContext.authenticate(username, password, server);
 
-                    authenticatedUser = muzimaContext.getAuthenticatedUser();
-                }
+                authenticatedUser = muzimaContext.getAuthenticatedUser();
             }
             muzimaContext.closeSession();
         } catch (Exception e) {
@@ -269,6 +284,12 @@ public class MuzimaApplication extends Application {
         muzimaTimer.restart();
     }
 
+    public boolean isLoggedIn() {
+        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
+        String passwordKey = getResources().getString(R.string.preference_password);
+        return settings.getAll().size() == 0 || StringUtil.EMPTY.equals(settings.getAll().get(passwordKey).toString());
+    }
+
     public void logOut() {
         saveBeforeExit();
         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
@@ -288,6 +309,9 @@ public class MuzimaApplication extends Application {
         if (currentActivity instanceof FormWebViewActivity) {
             ((FormWebViewActivity) currentActivity).saveDraft();
         }
+        if (currentActivity instanceof HTMLFormWebViewActivity) {
+            ((HTMLFormWebViewActivity) currentActivity).stopAutoSaveProcess();
+        }
     }
 
     private String getConfigurationString() throws IOException {
@@ -301,5 +325,11 @@ public class MuzimaApplication extends Application {
         }
         reader.close();
         return builder.toString();
+    }
+
+    public boolean isRunningInBackground() {
+        ActivityManager manager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        List<ActivityManager.RunningTaskInfo> tasks = manager.getRunningTasks(1);
+        return tasks.get(0).topActivity.getClassName().contains("Launcher");
     }
 }

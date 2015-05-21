@@ -35,9 +35,9 @@ import java.util.List;
 import java.util.Map;
 
 import static com.muzima.api.model.APIName.DOWNLOAD_OBSERVATIONS;
-import static java.util.Arrays.asList;
 import static com.muzima.util.Constants.UUID_SEPARATOR;
 import static com.muzima.util.Constants.UUID_TYPE_SEPARATOR;
+import static java.util.Arrays.asList;
 
 public class ObservationController {
 
@@ -65,6 +65,9 @@ public class ObservationController {
         } catch (IOException e) {
             throw new LoadObservationException(e);
         }
+    }
+    public int getObservationsCountByPatient(String patientUuid) throws IOException {
+        return observationService.getObservationsByPatient(patientUuid).size();
     }
 
     private void inflateConcepts(List<Observation> observationsByPatient) throws IOException {
@@ -142,6 +145,15 @@ public class ObservationController {
             throw new LoadObservationException(e);
         }
     }
+    public List<Observation> getObservationsByPatient(String patientUuid)  throws LoadObservationException{
+        try {
+            List<Observation> observations = observationService.getObservationsByPatient(patientUuid);
+            inflateConcepts(observations);
+            return observations;
+        } catch (IOException e) {
+            throw new LoadObservationException(e);
+        }
+    }
 
     private Encounters groupByEncounters(List<Observation> observationsByPatient) throws IOException {
         inflateConcepts(observationsByPatient);
@@ -179,9 +191,14 @@ public class ObservationController {
                     allConceptsUuids = getAllUuids(knownConceptsUuid, newConceptsUuids);
                     allPatientsUuids = getAllUuids(knownPatientsUuid, newPatientsUuids);
                     paramSignature = buildParamSignature(allPatientsUuids, allConceptsUuids);
-                    observations = observationService.downloadObservations(newPatientsUuids, allConceptsUuids, null);
-                    observations.addAll(observationService.downloadObservations(knownPatientsUuid, newConceptsUuids, null));
-                    observations.addAll(observationService.downloadObservations(knownPatientsUuid, knownConceptsUuid, fullLastSyncTimeInfo.getLastSyncDate()));
+                    if(newPatientsUuids.size()!=0) {
+                        observations = observationService.downloadObservations(newPatientsUuids, allConceptsUuids, null);
+                        observations.addAll(observationService.downloadObservations(knownPatientsUuid, newConceptsUuids, null));
+                        observations.addAll(observationService.downloadObservations(knownPatientsUuid, knownConceptsUuid, fullLastSyncTimeInfo.getLastSyncDate()));
+                    }
+                    else{
+                        observations.addAll(observationService.downloadObservations(patientUuids, conceptUuids, null));
+                    }
                 }
             }
             LastSyncTime newLastSyncTime = new LastSyncTime(DOWNLOAD_OBSERVATIONS, sntpService.getLocalTime(), paramSignature);

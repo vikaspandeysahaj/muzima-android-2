@@ -105,9 +105,9 @@ public class MuzimaSyncService {
 
     private boolean hasInvalidSpecialCharacter(String username) {
         String invalidCharacters = SyncStatusConstants.INVALID_CHARACTER_FOR_USERNAME;
-        for(int i = 0; i < invalidCharacters.length(); i++){
-            String substring = invalidCharacters.substring(i, i+1);
-            if(username.contains(substring)){
+        for (int i = 0; i < invalidCharacters.length(); i++) {
+            String substring = invalidCharacters.substring(i, i + 1);
+            if (username.contains(substring)) {
                 return true;
             }
         }
@@ -115,21 +115,24 @@ public class MuzimaSyncService {
     }
 
     public int[] downloadForms() {
-        int[] result = new int[2];
+        int[] result = new int[3];
 
         try {
             long startDownloadForms = System.currentTimeMillis();
-            List<Form> forms = formController.downloadAllForms();
+            List<Form> allDownloadedForms = formController.downloadAllForms();
+            List<Form> allForms = formController.getAllAvailableForms();
+            int deletedFormCount = getDeletedFormCount(allDownloadedForms, allForms);
             long endDownloadForms = System.currentTimeMillis();
-            List<Form> voidedForms = deleteVoidedForms(forms);
-            forms.removeAll(voidedForms);
-            formController.updateAllForms(forms);
+            List<Form> voidedForms = deleteVoidedForms(allDownloadedForms);
+            allDownloadedForms.removeAll(voidedForms);
+            formController.updateAllForms(allDownloadedForms);
             long endSaveForms = System.currentTimeMillis();
             Log.d(TAG, "In downloading forms: " + (endDownloadForms - startDownloadForms) / 1000 + " sec\n" +
                     "In replacing forms: " + (endDownloadForms - endSaveForms) / 1000 + " sec");
 
             result[0] = SyncStatusConstants.SUCCESS;
-            result[1] = forms.size();
+            result[1] = allDownloadedForms.size();
+            result[2] = deletedFormCount;
 
         } catch (FormController.FormFetchException e) {
             Log.e(TAG, "Exception when trying to download forms", e);
@@ -147,11 +150,24 @@ public class MuzimaSyncService {
         return result;
     }
 
+    private int getDeletedFormCount(List<Form> allDownloadedForms, List<Form> allForms) {
+        int deletedFormCount = 0;
+        for (Form form : allForms) {
+            for (Form downloadedForm : allDownloadedForms) {
+                if (form.getUuid().equals(downloadedForm.getUuid()) && downloadedForm.isRetired()) {
+                    deletedFormCount++;
+                }
+            }
+        }
+        return deletedFormCount;
+    }
+
+
     private List<Form> deleteVoidedForms(List<Form> forms) throws FormController.FormDeleteException {
         Log.i(TAG, "Voided forms are deleted");
         List<Form> voidedForms = new ArrayList<Form>();
-        for( Form form : forms){
-            if(form.isVoided()){
+        for (Form form : forms) {
+            if (form.isRetired()) {
                 voidedForms.add(form);
             }
         }
@@ -159,15 +175,25 @@ public class MuzimaSyncService {
         return voidedForms;
     }
 
-    public int[] downloadFormTemplates(String[] formIds) {
+    public int[] downloadFormTemplates(String[] formIds, boolean replaceExistingTemplates) {
         int[] result = new int[3];
 
         try {
             List<FormTemplate> formTemplates = formController.downloadFormTemplates(formIds);
             Log.i(TAG, formTemplates.size() + " form template download successful");
 
-            formController.replaceFormTemplates(formTemplates);
             List<Concept> concepts = getRelatedConcepts(formTemplates);
+
+            if(replaceExistingTemplates){
+                formController.replaceFormTemplates(formTemplates);
+                ConceptController.newConcepts = concepts;
+                List<Concept> savedConcepts = conceptController.getConcepts();
+                ConceptController.newConcepts.removeAll(savedConcepts);
+            }
+            else {
+                formController.saveFormTemplates(formTemplates);
+            }
+
             conceptController.saveConcepts(concepts);
 
             Log.i(TAG, "Form templates replaced");
@@ -191,6 +217,8 @@ public class MuzimaSyncService {
             Log.e(TAG, "Exception when trying to download forms", e);
             result[0] = SyncStatusConstants.DOWNLOAD_ERROR;
             return result;
+        } catch (ConceptController.ConceptFetchException e) {
+            e.printStackTrace();
         }
         return result;
     }
@@ -226,8 +254,8 @@ public class MuzimaSyncService {
     private List<Cohort> deleteVoidedCohorts(List<Cohort> cohorts) throws CohortController.CohortDeleteException {
         Log.i(TAG, "Voided cohorts are deleted");
         List<Cohort> voidedCohorts = new ArrayList<Cohort>();
-        for( Cohort cohort : cohorts){
-            if(cohort.isVoided()){
+        for (Cohort cohort : cohorts) {
+            if (cohort.isVoided()) {
                 voidedCohorts.add(cohort);
             }
         }
@@ -301,8 +329,8 @@ public class MuzimaSyncService {
     }
 
     private void getVoidedPatients(ArrayList<Patient> voidedPatients, List<Patient> cohortPatients) {
-        for(Patient patient : cohortPatients){
-            if(patient.isVoided()){
+        for (Patient patient : cohortPatients) {
+            if (patient.isVoided()) {
                 voidedPatients.add(patient);
             }
         }
@@ -325,13 +353,12 @@ public class MuzimaSyncService {
         }
         return result;
     }
-
-    public int[] downloadObservationsForPatientsByCohortUUIDs(String[] cohortUuids) {
+    public int[] downloadObservationsForPatientsByCohortUUIDs(String[] cohortUuids, boolean replaceExistingObservation) {
         int[] result = new int[2];
         List<Patient> patients;
         try {
             patients = patientController.getPatientsForCohorts(cohortUuids);
-            result = downloadObservationsForPatientsByPatientUUIDs(getPatientUuids(patients));
+            result = downloadObservationsForPatientsByPatientUUIDs(getPatientUuids(patients),replaceExistingObservation);
         } catch (PatientController.PatientLoadException e) {
             Log.e(TAG, "Exception thrown while loading patients.", e);
             result[0] = SyncStatusConstants.LOAD_ERROR;
@@ -344,7 +371,7 @@ public class MuzimaSyncService {
 
         int count = 0;
         boolean hasElements = !strings.isEmpty();
-        while(hasElements) {
+        while (hasElements) {
             int startElement = count * 50;
             int endElement = ++count * 50;
             hasElements = strings.size() > endElement;
@@ -358,7 +385,7 @@ public class MuzimaSyncService {
         return lists;
     }
 
-    public int[] downloadObservationsForPatientsByPatientUUIDs(List<String> patientUuids) {
+    public int[] downloadObservationsForPatientsByPatientUUIDs(List<String> patientUuids, boolean replaceExistingObservations) {
         int[] result = new int[3];
         try {
             long startDownloadObservations = System.currentTimeMillis();
@@ -371,7 +398,8 @@ public class MuzimaSyncService {
                 for (List<String> slicedConceptUuid : slicedConceptUuids) {
                     allObservations.addAll(
                             observationController.downloadObservationsByPatientUuidsAndConceptUuids(
-                                    slicedPatientUuid, slicedConceptUuid));
+                                    slicedPatientUuid, slicedConceptUuid)
+                    );
                 }
             }
             long endDownloadObservations = System.currentTimeMillis();
@@ -380,11 +408,17 @@ public class MuzimaSyncService {
             observationController.deleteObservations(voidedObservations);
             allObservations.removeAll(voidedObservations);
             Log.i(TAG, "Voided observations delete successful with " + voidedObservations.size() + " observations");
-            observationController.replaceObservations(allObservations);
-            long replacedObservations = System.currentTimeMillis();
 
-            Log.d(TAG, "In Downloading observations : " + (endDownloadObservations - startDownloadObservations) / 1000 + " sec\n" +
-                    "In Replacing observations for patients: " + (replacedObservations - endDownloadObservations) / 1000 + " sec");
+            if(replaceExistingObservations) {
+                observationController.replaceObservations(allObservations);
+                long replacedObservations = System.currentTimeMillis();
+                Log.d(TAG, "In Downloading observations : " + (endDownloadObservations - startDownloadObservations) / 1000 + " sec\n" +
+                        "In Replacing observations for patients: " + (replacedObservations - endDownloadObservations) / 1000 + " sec");
+            }
+            else {
+                observationController.saveObservations(allObservations);
+                Log.d(TAG, "In Saving observations : " + (endDownloadObservations - startDownloadObservations) / 1000 + " sec\n");
+            }
 
             result[0] = SyncStatusConstants.SUCCESS;
             result[1] = allObservations.size();
@@ -401,6 +435,9 @@ public class MuzimaSyncService {
         } catch (ObservationController.DeleteObservationException e) {
             Log.e(TAG, "Exception thrown while deleting observations.", e);
             result[0] = SyncStatusConstants.DELETE_ERROR;
+        } catch (ObservationController.SaveObservationException e) {
+            Log.e(TAG, "Exception thrown while saving observations.", e);
+            result[0] = SyncStatusConstants.SAVE_ERROR;
         }
 
         return result;
@@ -408,20 +445,20 @@ public class MuzimaSyncService {
 
     private List<Observation> getVoidedObservations(List<Observation> allObservations) {
         List<Observation> voidedObservations = new ArrayList<Observation>();
-        for(Observation observation : allObservations){
-            if(observation.isVoided()){
+        for (Observation observation : allObservations) {
+            if (observation.isVoided()) {
                 voidedObservations.add(observation);
             }
         }
         return voidedObservations;
     }
 
-    public int[] downloadEncountersForPatientsByCohortUUIDs(String[] cohortUuids) {
+    public int[] downloadEncountersForPatientsByCohortUUIDs(String[] cohortUuids, boolean replaceExistingEncounters) {
         int[] result = new int[2];
         List<Patient> patients;
         try {
             patients = patientController.getPatientsForCohorts(cohortUuids);
-            result = downloadEncountersForPatientsByPatientUUIDs(getPatientUuids(patients));
+            result = downloadEncountersForPatientsByPatientUUIDs(getPatientUuids(patients), replaceExistingEncounters);
         } catch (PatientController.PatientLoadException e) {
             Log.e(TAG, "Exception thrown while loading patients.", e);
             result[0] = SyncStatusConstants.LOAD_ERROR;
@@ -429,7 +466,7 @@ public class MuzimaSyncService {
         return result;
     }
 
-    public int[] downloadEncountersForPatientsByPatientUUIDs(List<String> patientUuids) {
+    public int[] downloadEncountersForPatientsByPatientUUIDs(List<String> patientUuids, boolean replaceExistingEncounters) {
         int[] result = new int[3];
         try {
             long startDownloadEncounters = System.currentTimeMillis();
@@ -445,11 +482,15 @@ public class MuzimaSyncService {
             encounterController.deleteEncounters(voidedEncounters);
             Log.i(TAG, "Voided encounters delete successful with " + allEncounters.size() + " encounters");
 
-            encounterController.replaceEncounters(allEncounters);
-            long replacedEncounters = System.currentTimeMillis();
-
-            Log.d(TAG, "In Downloading encounters : " + (endDownloadObservations - startDownloadEncounters) / 1000 + " sec\n" +
-                    "In Replacing encounters for patients: " + (replacedEncounters - endDownloadObservations) / 1000 + " sec");
+            if(replaceExistingEncounters) {
+                encounterController.replaceEncounters(allEncounters);
+                long replacedEncounters = System.currentTimeMillis();
+                Log.d(TAG, "In Downloading encounters : " + (endDownloadObservations - startDownloadEncounters) / 1000 + " sec\n" +
+                        "In Replacing encounters for patients: " + (replacedEncounters - endDownloadObservations) / 1000 + " sec");
+            }else {
+                encounterController.saveEncounters(allEncounters);
+                Log.d(TAG, "In Saving encounters : " + (endDownloadObservations - startDownloadEncounters) / 1000 + " sec\n" );
+            }
 
             result[0] = SyncStatusConstants.SUCCESS;
             result[1] = allEncounters.size();
@@ -463,14 +504,17 @@ public class MuzimaSyncService {
         } catch (EncounterController.DeleteEncounterException e) {
             Log.e(TAG, "Exception thrown while deleting encounters.", e);
             result[0] = SyncStatusConstants.DELETE_ERROR;
+        } catch (EncounterController.SaveEncounterException e) {
+            Log.e(TAG, "Exception thrown while saving encounters.", e);
+            result[0] = SyncStatusConstants.SAVE_ERROR;
         }
         return result;
     }
 
     private ArrayList<Encounter> getVoidedEncounters(List<Encounter> allEncounters) {
         ArrayList<Encounter> voidedEncounters = new ArrayList<Encounter>();
-        for(Encounter encounter : allEncounters){
-            if(encounter.isVoided()){
+        for (Encounter encounter : allEncounters) {
+            if (encounter.isVoided()) {
                 voidedEncounters.add(encounter);
             }
         }
